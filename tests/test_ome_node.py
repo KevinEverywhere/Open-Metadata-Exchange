@@ -6,9 +6,13 @@ import pytest
 
 from server import ome_node
 
+AUSTIN_PORT = 119
+BOSTON_PORT = AUSTIN_PORT + 1000
 
-def test_nntp_client() -> None:
-    nntp_client = ome_node.get_client()
+
+@pytest.mark.parametrize("port", [AUSTIN_PORT, BOSTON_PORT])
+def test_nntp_client(port: int) -> None:
+    nntp_client = ome_node.get_client(port=port)
     assert isinstance(nntp_client, ome_node.nntp.NNTPClient)
     newsgroups = set(nntp_client.list_newsgroups())
     assert newsgroups == ome_node.DEFAULT_NEWSGROUPS
@@ -42,6 +46,35 @@ def test_channel_summary() -> None:
         assert channel_summary.last_article == last == 0
 
 
+jane_austen_novels = {
+    "Sense and Sensibility": 1811,
+    "Pride and Prejudice": 1813,
+    "Mansfield Park": 1814,
+    "Emma": 1816,
+    "Northanger Abbey": 1818,
+    "Persuasion": 1819,
+    "Lady Susan": 1871,
+}
+
+
+def sample_metadata_austin() -> Iterator[ome_node.Metadata]:
+    for title, year in jane_austen_novels.items():
+        keyword = title.split()[-1]  # "Sense and Sensibility" --> "Sensibility"
+        yield ome_node.Metadata(
+            title=title,
+            url=f"https://en.wikipedia.org/wiki/{title}".replace(" ", "_"),
+            description=f"{title} is a novel by Jane Austen",
+            subject="Sensibility",
+            author="Jane Austen",
+            alignment_tags=["Sensibility", "Jane Austen", keyword],
+            keywords=[
+                "Sensibility",
+                "Jane Austen",
+                f"Books from {year}",
+            ],
+        )
+
+
 sue_grafton_books = {
     "A is for Alibi": 1982,
     "B is for Burglar": 1985,
@@ -71,7 +104,7 @@ sue_grafton_books = {
 }
 
 
-def sample_metadata() -> Iterator[ome_node.Metadata]:
+def sample_metadata_boston() -> Iterator[ome_node.Metadata]:
     for title, year in sue_grafton_books.items():
         keyword = title.split()[-1]  # "A is for Alibi" --> "Alibi"
         yield ome_node.Metadata(
@@ -90,7 +123,7 @@ def sample_metadata() -> Iterator[ome_node.Metadata]:
         )
 
 
-@pytest.mark.parametrize("metadata", sample_metadata())
+@pytest.mark.parametrize("metadata", sample_metadata_boston())
 def test_create_post(metadata: ome_node.Metadata) -> None:
     assert isinstance(metadata, ome_node.Metadata)
     assert metadata.title in sue_grafton_books
